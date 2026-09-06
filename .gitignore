@@ -1,0 +1,27 @@
+# ---- Datasets (large archives) ----
+/archive (3)/
+/archive (4)/
+
+# ---- Python / ML ----
+ml/.venv/
+__pycache__/
+*.pyc
+*.pkl
+*_landmarks_*.npz
+ml/wl_*/**
+
+# ---- Flutter / Dart build outputs ----
+lingo/build/
+lingo/.dart_tool/
+lingo/.flutter-plugins
+lingo/.flutter-plugins-dependencies
+lingo/.packages
+lingo/.pub-cache/
+lingo/pubspec.lock
+
+# ---- IDE / OS ----
+.idea/
+*.iml
+.vscode/
+Thumbs.db
+.DS_Store
