@@ -2,13 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/learner_provider.dart';
+import '../screens/camera/detection_camera_screen.dart';
 import '../screens/communicate/communicate_screen.dart';
 import '../screens/home/app_shell.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/learn/lesson_detail_screen.dart';
 import '../screens/learn/lesson_list_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
-import '../screens/practice/practice_screen.dart';
 import '../screens/progress/progress_screen.dart';
 
 /// Application router.
@@ -20,8 +20,8 @@ import '../screens/progress/progress_screen.dart';
 ///   / (branch 2)          → progress
 ///   /onboarding           → onboarding (redirects to / when onboarded)
 ///   /learn/:lessonId      → lesson detail
-///   /practice             → practice (full screen)
-///   /communicate          → communication mode (full screen)
+///   /practice?sign=:id    → practice (full screen, live camera)
+///   /communicate          → communication mode (full screen, live camera)
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/home',
@@ -72,7 +72,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/practice',
-        builder: (context, state) => const PracticeScreen(),
+        builder: (context, state) => DetectionCameraScreen(
+          expectedSignId: state.uri.queryParameters['sign'],
+        ),
       ),
       GoRoute(
         path: '/communicate',

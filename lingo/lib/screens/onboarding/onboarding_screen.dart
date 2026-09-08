@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../config/theme.dart';
 import '../../models/learning_goal.dart';
@@ -22,6 +24,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   LearningGoal? _selectedGoal;
   SkillLevel? _selectedLevel;
   final TextEditingController _nameController = TextEditingController();
+  bool _isFinishing = false;
 
   static const _totalPages = 3;
 
@@ -42,19 +45,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _finishOnboarding() async {
+    if (_isFinishing) return;
+    setState(() => _isFinishing = true);
+
     final name = _nameController.text.trim().isEmpty
         ? 'Friend'
         : _nameController.text.trim();
     final goal = _selectedGoal ?? LearningGoal.justLearning;
     final level = _selectedLevel ?? SkillLevel.beginner;
 
-    await ref.read(learnerStateProvider.notifier).setProfile(
-          name: name,
-          goal: goal,
-          level: level,
-        );
-    if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+    try {
+      await ref.read(learnerStateProvider.notifier).setProfile(
+            name: name,
+            goal: goal,
+            level: level,
+          );
+      if (mounted) {
+        context.go('/home');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFinishing = false);
+      }
     }
   }
 
@@ -80,7 +92,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () => _goToPage(_totalPages - 1),
+                onPressed: _isFinishing ? null : _finishOnboarding,
                 child: const Text('Skip'),
               ),
             ),
@@ -130,6 +142,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ? 'Start learning'
                         : 'Continue',
                     onPressed: _canProceed
+                        && !_isFinishing
                         ? () {
                             if (_currentPage == _totalPages - 1) {
                               _finishOnboarding();
@@ -162,22 +175,42 @@ class _WelcomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Mascot(mood: MascotMood.greeting, size: 120),
+          const Mascot(mood: MascotMood.greeting, size: 120)
+              .animate()
+              .scale(
+                begin: const Offset(0.8, 0.8),
+                end: const Offset(1, 1),
+                duration: 500.ms,
+                curve: Curves.easeOutBack,
+              )
+              .fadeIn(duration: 400.ms),
           const SizedBox(height: LingoSpacing.lg),
-          Text('Welcome to LINGO', style: theme.textTheme.headlineMedium),
+          Text('Welcome to LINGO', style: theme.textTheme.headlineMedium)
+              .animate()
+              .fadeIn(delay: 200.ms, duration: 400.ms)
+              .slideY(begin: 0.2, end: 0, delay: 200.ms, duration: 400.ms),
           const SizedBox(height: LingoSpacing.sm),
           Text(
             'LINGO makes learning American Sign Language fun and practical. '
             'Build real hand signing skills you can use in the real world.',
             style: theme.textTheme.bodyMedium,
             textAlign: TextAlign.center,
-          ),
+          ).animate().fadeIn(delay: 400.ms, duration: 400.ms),
           const SizedBox(height: LingoSpacing.lg),
-          const _FeaturePoint(icon: Icons.school, text: 'Short, visual lessons'),
+          const _FeaturePoint(icon: Icons.school, text: 'Short, visual lessons')
+              .animate()
+              .fadeIn(delay: 500.ms, duration: 300.ms)
+              .slideX(begin: -0.15, end: 0, delay: 500.ms, duration: 300.ms),
           const _FeaturePoint(
-              icon: Icons.videocam, text: 'Practice with your camera'),
+              icon: Icons.videocam, text: 'Practice with your camera')
+              .animate()
+              .fadeIn(delay: 600.ms, duration: 300.ms)
+              .slideX(begin: -0.15, end: 0, delay: 600.ms, duration: 300.ms),
           const _FeaturePoint(
-              icon: Icons.psychology, text: 'Real hand-sign recognition'),
+              icon: Icons.psychology, text: 'Real hand-sign recognition')
+              .animate()
+              .fadeIn(delay: 700.ms, duration: 300.ms)
+              .slideX(begin: -0.15, end: 0, delay: 700.ms, duration: 300.ms),
         ],
       ),
     );
@@ -223,12 +256,15 @@ class _GoalPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Why are you learning ASL?',
-                style: theme.textTheme.headlineMedium),
+                style: theme.textTheme.headlineMedium)
+                .animate()
+                .fadeIn(duration: 400.ms)
+                .slideY(begin: 0.2, end: 0, duration: 400.ms),
             const SizedBox(height: LingoSpacing.sm),
             Text(
               'This helps us tailor your lessons.',
               style: theme.textTheme.bodyMedium,
-            ),
+            ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
             const SizedBox(height: LingoSpacing.xl),
             for (final goal in LearningGoal.values) ...[
               _OptionCard(
@@ -237,7 +273,15 @@ class _GoalPage extends StatelessWidget {
                 description: goal.description,
                 selected: selected == goal,
                 onTap: () => onSelect(goal),
-              ),
+              ).animate().fadeIn(
+                    delay: Duration(milliseconds: 300 + LearningGoal.values.indexOf(goal) * 100),
+                    duration: 300.ms,
+                  ).slideY(
+                    begin: 0.1,
+                    end: 0,
+                    delay: Duration(milliseconds: 300 + LearningGoal.values.indexOf(goal) * 100),
+                    duration: 300.ms,
+                  ),
               const SizedBox(height: LingoSpacing.md),
             ],
           ],

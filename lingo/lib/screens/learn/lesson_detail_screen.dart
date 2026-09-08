@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../config/theme.dart';
 import '../../models/lesson.dart';
 import '../../models/sign.dart';
-import '../../providers/lesson_provider.dart';
 import '../../providers/learner_provider.dart';
+import '../../providers/lesson_provider.dart';
 import '../../widgets/common/lingo_button.dart';
 import '../../widgets/lesson/sign_demo.dart';
+import '../practice/practice_session_screen.dart';
 
 /// Detailed view of a single lesson with its signs.
 class LessonDetailScreen extends ConsumerWidget {
@@ -70,7 +70,13 @@ class LessonDetailScreen extends ConsumerWidget {
             label: 'Practice this lesson',
             icon: const Icon(Icons.videocam_outlined,
                 size: 20, color: Colors.white),
-            onPressed: () => context.go('/practice?lessonId=${lesson.id}'),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PracticeSessionScreen(lessonId: lesson.id),
+                ),
+              );
+            },
           ),
           const SizedBox(height: LingoSpacing.xxl),
         ],

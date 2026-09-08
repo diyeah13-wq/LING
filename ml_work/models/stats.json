@@ -1,0 +1,22 @@
+{
+  "test_accuracy": 0.8421052631578947,
+  "n_train": 70,
+  "n_val": 19,
+  "n_test": 19,
+  "classes": [
+    "hello",
+    "thank-you",
+    "please",
+    "sorry",
+    "goodbye",
+    "yes",
+    "no",
+    "help",
+    "water",
+    "food",
+    "doctor",
+    "hospital",
+    "where"
+  ],
+  "best_epoch": 52
+}

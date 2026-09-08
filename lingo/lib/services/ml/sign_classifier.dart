@@ -23,6 +23,9 @@ abstract class SignClassifier {
   /// Whether the classifier is loaded and ready.
   bool get isReady;
 
+  /// Loads/initializes the model (idempotent).
+  Future<void> load();
+
   /// Releases any native model resources.
   Future<void> dispose();
 }

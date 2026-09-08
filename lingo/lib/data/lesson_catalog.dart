@@ -65,6 +65,18 @@ class LessonCatalog {
           type: SignType.motion,
           emoji: '😔',
         ),
+        Sign(
+          id: 'goodbye',
+          text: 'Goodbye',
+          meaning: 'A friendly farewell.',
+          howToPerform:
+              'Open your hand flat with the palm facing out, then close and '
+              'open your fingers together a couple of times, like waving '
+              'goodbye with your fingertips.',
+          tip: 'Keep the hand upright near your shoulder, fingers together.',
+          type: SignType.motion,
+          emoji: '👋',
+        ),
       ],
     ),
     Lesson(

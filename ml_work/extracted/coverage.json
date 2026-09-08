@@ -1,0 +1,67 @@
+{
+  "hello": {
+    "clips": 4,
+    "with_hand": 4,
+    "missing": []
+  },
+  "thank you": {
+    "clips": 7,
+    "with_hand": 7,
+    "missing": []
+  },
+  "please": {
+    "clips": 7,
+    "with_hand": 7,
+    "missing": []
+  },
+  "sorry": {
+    "clips": 7,
+    "with_hand": 7,
+    "missing": []
+  },
+  "goodbye": {
+    "clips": 5,
+    "with_hand": 5,
+    "missing": []
+  },
+  "yes": {
+    "clips": 12,
+    "with_hand": 12,
+    "missing": []
+  },
+  "no": {
+    "clips": 11,
+    "with_hand": 11,
+    "missing": []
+  },
+  "help": {
+    "clips": 14,
+    "with_hand": 14,
+    "missing": []
+  },
+  "water": {
+    "clips": 9,
+    "with_hand": 9,
+    "missing": []
+  },
+  "food": {
+    "clips": 7,
+    "with_hand": 7,
+    "missing": []
+  },
+  "doctor": {
+    "clips": 11,
+    "with_hand": 11,
+    "missing": []
+  },
+  "hospital": {
+    "clips": 7,
+    "with_hand": 7,
+    "missing": []
+  },
+  "where": {
+    "clips": 7,
+    "with_hand": 7,
+    "missing": []
+  }
+}

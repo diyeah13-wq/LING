@@ -3,32 +3,36 @@ import '../models/sign.dart';
 /// The ordered vocabulary the on-device recognition model supports.
 ///
 /// This is the single source of truth for:
-///   * the TFLite model's output labels (`assets/ml/labels.txt`)
+///   * the TFLite model's output labels (`class_map.json` produced by the
+///     training pipeline in `ml_work/`)
 ///   * which signs can be camera-practiced
 ///   * the limited Communicator vocabulary
 ///
-/// The order MUST match `labels.txt` produced by the training pipeline in
-/// `ml/` so that output index -> sign mapping stays correct.
+/// The order MUST match the class map used to train the exported TFLite model
+/// so that output index -> sign mapping stays correct.
 class ModelVocabulary {
   ModelVocabulary._();
 
+  /// Sign-agnostic model labels in the exact training order (13 classes).
   static const List<String> labels = [
     'hello',
     'thank you',
     'please',
     'sorry',
+    'goodbye',
     'yes',
     'no',
     'help',
-    'where',
     'water',
     'food',
     'doctor',
     'hospital',
+    'where',
   ];
 
   /// Maps a model label to its canonical sign id in the lesson catalog.
-  static String signIdForLabel(String label) => label;
+  static String signIdForLabel(String label) =>
+      label == 'thank you' ? 'thank-you' : label;
 
   /// Maps a canonical sign id (from [Sign.id]) to its model label.
   static String labelForSignId(String signId) =>

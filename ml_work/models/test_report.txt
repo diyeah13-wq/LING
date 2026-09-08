@@ -1,0 +1,15 @@
+Test accuracy: 0.842 (84.2%)
+Per-class (class: correct/total):
+  hello        0/1
+  thank-you    1/1
+  please       1/1
+  sorry        1/1
+  goodbye      1/1
+  yes          2/2
+  no           1/2
+  help         3/3
+  water        2/2
+  food         1/1
+  doctor       1/2
+  hospital     1/1
+  where        1/1
