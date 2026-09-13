@@ -13,6 +13,13 @@ import '../models/sign.dart';
 class ModelVocabulary {
   ModelVocabulary._();
 
+  /// Static alphabet and number labels in the exported model's order.
+  static const List<String> staticLabels = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+  ];
+
   /// Sign-agnostic model labels in the exact training order (13 classes).
   static const List<String> labels = [
     'hello',
@@ -38,9 +45,25 @@ class ModelVocabulary {
   static String labelForSignId(String signId) =>
       signId == 'thank-you' ? 'thank you' : signId;
 
-  /// Whether a sign is supported by the recognition model.
-  static bool isModelSupported(String signId) =>
-      labels.contains(labelForSignId(signId));
+  /// Whether a sign is supported by the recognition model (word labels or the
+  /// static alphabet/number labels, i.e. `letter-x` / `number-x` sign ids).
+  static bool isModelSupported(String signId) {
+    if (labels.contains(labelForSignId(signId))) return true;
+    final staticLabel = _staticLabelForSignId(signId);
+    return staticLabel != null && staticLabels.contains(staticLabel);
+  }
+
+  static String? _staticLabelForSignId(String signId) {
+    const letterPrefix = 'letter-';
+    const numberPrefix = 'number-';
+    if (signId.startsWith(letterPrefix)) {
+      return signId.substring(letterPrefix.length);
+    }
+    if (signId.startsWith(numberPrefix)) {
+      return signId.substring(numberPrefix.length);
+    }
+    return null;
+  }
 
   /// Human-readable phrase used in glanceable UI chips.
   static String displayLabel(String label) => label;

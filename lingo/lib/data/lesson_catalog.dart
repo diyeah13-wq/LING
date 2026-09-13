@@ -10,7 +10,26 @@ import '../models/sign.dart';
 class LessonCatalog {
   LessonCatalog._();
 
-  static const List<Lesson> lessons = [
+  static final List<Lesson> lessons = [
+    _symbolLesson(
+      id: 'alphabet-a-m',
+      title: 'ASL alphabet: A–M',
+      subtitle: 'Build your fingerspelling foundation',
+      symbols: 'abcdefghijklm'.split(''),
+    ),
+    _symbolLesson(
+      id: 'alphabet-n-z',
+      title: 'ASL alphabet: N–Z',
+      subtitle: 'Complete the ASL alphabet',
+      symbols: 'nopqrstuvwxyz'.split(''),
+    ),
+    _symbolLesson(
+      id: 'numbers-0-9',
+      title: 'Numbers: 0–9',
+      subtitle: 'Learn the essential ASL numbers',
+      symbols: '0123456789'.split(''),
+      isNumber: true,
+    ),
     Lesson(
       id: 'greetings',
       title: 'Greetings',
@@ -186,6 +205,38 @@ class LessonCatalog {
       ],
     ),
   ];
+
+  static Lesson _symbolLesson({
+    required String id,
+    required String title,
+    required String subtitle,
+    required List<String> symbols,
+    bool isNumber = false,
+  }) {
+    return Lesson(
+      id: id,
+      title: title,
+      subtitle: subtitle,
+      emoji: isNumber ? '🔢' : '🔤',
+      category: isNumber ? 'numbers' : 'alphabet',
+      signs: symbols
+          .map((symbol) => Sign(
+                id: '${isNumber ? 'number' : 'letter'}-$symbol',
+                text: isNumber ? symbol : symbol.toUpperCase(),
+                meaning: isNumber
+                    ? 'The ASL number $symbol.'
+                    : 'The ASL fingerspelling letter ${symbol.toUpperCase()}.',
+                howToPerform: isNumber
+                    ? 'Match your handshape to the reference image for $symbol.'
+                    : 'Match your handshape to the reference image for ${symbol.toUpperCase()}.',
+                tip: 'Keep your hand steady and make each finger shape clear.',
+                type: SignType.static,
+                emoji: isNumber ? '🔢' : '🔤',
+                referenceImageAsset: 'assets/references/symbols/$symbol.jpeg',
+              ))
+          .toList(growable: false),
+    );
+  }
 
   static Lesson? lessonById(String id) {
     for (final lesson in lessons) {

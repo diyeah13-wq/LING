@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../providers/learner_provider.dart';
+import '../providers/auth_provider.dart';
+import '../screens/auth/auth_screen.dart';
 import '../screens/camera/detection_camera_screen.dart';
 import '../screens/communicate/communicate_screen.dart';
 import '../screens/home/app_shell.dart';
@@ -9,7 +10,9 @@ import '../screens/home/home_screen.dart';
 import '../screens/learn/lesson_detail_screen.dart';
 import '../screens/learn/lesson_list_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/practice/practice_session_screen.dart';
 import '../screens/progress/progress_screen.dart';
+import '../screens/settings/settings_screen.dart';
 
 /// Application router.
 ///
@@ -22,21 +25,31 @@ import '../screens/progress/progress_screen.dart';
 ///   /learn/:lessonId      → lesson detail
 ///   /practice?sign=:id    → practice (full screen, live camera)
 ///   /communicate          → communication mode (full screen, live camera)
+///   /settings             → app settings (theme, account)
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Re-evaluate redirects as Firebase restores or changes the user session.
+  ref.watch(authStateProvider);
   return GoRouter(
     initialLocation: '/home',
     redirect: (context, state) {
-      final isOnboarded = ref.read(learnerStateProvider).isOnboarded;
-      final goingToOnboarding = state.matchedLocation == '/onboarding';
-      if (!isOnboarded && !goingToOnboarding) {
-        return '/onboarding';
-      }
-      if (isOnboarded && goingToOnboarding) {
+      final signedIn = ref.read(authServiceProvider).currentUser != null;
+      final onAuthPage = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup';
+      if (!signedIn && !onAuthPage) return '/login';
+      if (signedIn && onAuthPage) {
         return '/home';
       }
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const AuthScreen(isSignUp: false),
+      ),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const AuthScreen(isSignUp: true),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),
@@ -77,8 +90,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/practice/lesson/:lessonId',
+        builder: (context, state) => PracticeSessionScreen(
+          lessonId: state.pathParameters['lessonId']!,
+        ),
+      ),
+      GoRoute(
         path: '/communicate',
         builder: (context, state) => const CommunicateScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

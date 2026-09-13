@@ -36,7 +36,7 @@ class SignFeatureExtractor {
     final frames = _resample(seqRaw, targetFrames);
 
     final normalized = List.generate(
-        targetFrames, (i) => _normalizeFrame(frames[i], targetFrames));
+      targetFrames, (i) => normalizeFrame(frames[i]));
 
     // Compute velocity: delta between consecutive frames.
     final velocities = List.generate(targetFrames, (i) {
@@ -90,7 +90,9 @@ class SignFeatureExtractor {
         growable: false);
   }
 
-  static List<double> _normalizeFrame(List<List<double>> frame, int targetFrames) {
+  /// Normalizes one raw landmark frame into the 63-value static handshape
+  /// representation used by the alphabet and number classifier.
+  static List<double> normalizeFrame(List<List<double>> frame) {
     final out = List<double>.filled(staticDim, 0.0);
     if (frame.length < numLandmarks) return out;
     if (frame[wristIndex][0] == 0.0 &&

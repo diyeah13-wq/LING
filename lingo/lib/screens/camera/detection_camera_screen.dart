@@ -7,17 +7,23 @@ import 'package:hand_detection/hand_detection.dart';
 
 import '../../config/theme.dart';
 import '../../data/lesson_catalog.dart';
+import '../../data/model_vocabulary.dart';
+import '../../models/sign.dart';
 import '../../providers/learner_provider.dart';
+import '../../services/grading/sign_grading_service.dart';
 import '../../services/ml/sign_recognition_engine.dart';
 import '../../services/ml/tflite_sign_classifier.dart';
+import '../../services/ml/tflite_static_sign_classifier.dart';
+import '../../widgets/common/sign_video_player.dart';
 import '../../widgets/mascot/mascot.dart';
+import '../../widgets/practice/grading_result_sheet.dart';
 
 /// Full-screen live sign recognition.
 ///
 /// Two modes:
-///  * [expectedSignId] set   → practice: user signs one target; XP awarded
-///    when a confirmed recognition matches.
-///  * [expectedSignId] null   → communicate: free-form recognition turns
+///  * [expectedSignId] set   → practice/graded test: user signs one target; evaluation
+///    sheet with letter grade (A–F), feedback, and XP awarded.
+///  * [expectedSignId] null  → communicate: free-form recognition turns
 ///    performed signs into detected words.
 class DetectionCameraScreen extends ConsumerStatefulWidget {
   final String? expectedSignId;
@@ -55,6 +61,7 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
   RecognitionState _state = const RecognitionState();
   ConfirmedSign? _lastConfirmed;
   bool _busy = false;
+  bool _gradingSheetActive = false;
 
   bool get _isPractice => widget.expectedSignId != null;
 
@@ -125,7 +132,14 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
       detectorConf: 0.6,
       maxDetections: 1,
     );
-    final classifier = TfliteSignClassifier();
+    final expected = widget.expectedSignId == null
+        ? null
+        : LessonCatalog.signById(widget.expectedSignId!);
+    final isStatic = expected?.type == SignType.static;
+    final classifier = isStatic
+        ? (TfliteStaticSignClassifier()
+          ..setLabels(ModelVocabulary.staticLabels))
+        : (TfliteSignClassifier()..setLabels(ModelVocabulary.labels));
     await classifier.load();
 
     final supported = _isPractice
@@ -139,11 +153,14 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
       detector: detector,
       classifier: classifier,
       supportedSignIds: supported.isEmpty ? null : supported,
+      // Static handshapes (alphabet/numbers) are easier for the on-device
+      // model than motion signs, so grade them with a gentler threshold.
+      confirmThreshold: isStatic ? 0.42 : 0.55,
     );
 
     _stateSub = _engine!.states.listen(
       (s) {
-        if (mounted) setState(() => _state = s);
+        if (mounted && !_gradingSheetActive) setState(() => _state = s);
       },
       onError: (Object _) {},
     );
@@ -157,6 +174,7 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
   }
 
   Future<void> _onFrame(CameraImage image) async {
+    if (_gradingSheetActive) return;
     final engine = _engine;
     if (engine == null) return;
     final controller = _controller;
@@ -169,7 +187,7 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
   }
 
   Future<void> _onConfirmed(ConfirmedSign confirmed) async {
-    if (!mounted) return;
+    if (!mounted || _busy || _gradingSheetActive) return;
     setState(() => _lastConfirmed = confirmed);
 
     widget.onConfirmed?.call(confirmed);
@@ -178,38 +196,63 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
     if (signId == null) return;
 
     if (_isPractice) {
-      final expected = widget.expectedSignId;
-      if (expected == null || _busy) return;
+      final expectedId = widget.expectedSignId;
+      if (expectedId == null) return;
+      final expectedSign = LessonCatalog.signById(expectedId);
+      if (expectedSign == null) return;
+
       _busy = true;
       try {
+        final confidence = confirmed.classification.confidence ?? 0.0;
+        final result = SignGradingService.evaluate(
+          targetSign: expectedSign,
+          detectedSignId: signId,
+          confidence: confidence,
+        );
+
         final notifier = ref.read(learnerStateProvider.notifier);
-        if (signId == expected) {
-          await notifier.learnSign(expected);
-          await notifier.addXp(15);
-          await notifier.recordAttempt(success: true);
-          _celebrate();
-        } else {
-          await notifier.recordAttempt(success: false);
+        await notifier.recordAttempt(success: result.isMatch);
+        if (result.isMatch) {
+          await notifier.learnSign(expectedId);
+          if (result.xpEarned > 0) {
+            await notifier.addXp(result.xpEarned);
+          }
         }
+
+        if (!mounted) return;
+        setState(() => _gradingSheetActive = true);
+
+        await GradingResultSheet.show(
+          context,
+          result: result,
+          onTryAgain: () {
+            setState(() {
+              _gradingSheetActive = false;
+              _lastConfirmed = null;
+            });
+            _engine?.reset();
+          },
+          onContinue: () {
+            if (mounted) {
+              Navigator.of(context).maybePop();
+            }
+          },
+        );
       } finally {
         _busy = false;
+        if (mounted) {
+          setState(() => _gradingSheetActive = false);
+        }
       }
     }
   }
 
-  void _celebrate() {
-    if (_lastConfirmed == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Correct! +15 XP',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        backgroundColor: LingoColors.secondary,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
+  void _showVideoDemo() {
+    final expected = widget.expectedSignId;
+    if (expected == null) return;
+    final sign = LessonCatalog.signById(expected);
+    if (sign == null) return;
+    showSignVideoModal(context, sign);
   }
 
   @override
@@ -231,10 +274,30 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
 
   Widget _buildLive() {
     final controller = _controller!;
+    final expectedSign = widget.expectedSignId != null
+        ? LessonCatalog.signById(widget.expectedSignId!)
+        : null;
+
     return Stack(
       fit: StackFit.expand,
       children: [
         Center(child: CameraPreview(controller)),
+        // Framing guide outline
+        Center(
+          child: Container(
+            width: 280,
+            height: 380,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _state.hasHand
+                    ? LingoColors.secondary.withValues(alpha: 0.6)
+                    : Colors.white24,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(28),
+            ),
+          ),
+        ),
         // Live landmark overlay.
         if (_state.hasHand)
           Positioned.fill(
@@ -250,21 +313,57 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
           ),
         // Top status panel (full-screen mode only).
         if (!widget.embedded)
-          Positioned(top: 0, left: 0, right: 0, child: _StatusBar(widget: this)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _StatusBar(
+              widget: this,
+              onBack: () => Navigator.of(context).maybePop(),
+            ),
+          ),
         // Mascot in top-right corner (full-screen mode only).
         if (!widget.embedded)
           Positioned(
-            top: 8,
-            right: 12,
+            top: 14,
+            right: 14,
             child: _MascotCorner(state: _state, lastConfirmed: _lastConfirmed),
           ),
-        // Bottom hint (full-screen mode only).
+        // Bottom controls & video hint button (full-screen mode only).
         if (!widget.embedded)
           Positioned(
-            bottom: 16,
+            bottom: 20,
             left: 16,
             right: 16,
-            child: _BottomHint(widget: this),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (expectedSign != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: OutlinedButton.icon(
+                      onPressed: _showVideoDemo,
+                      icon: const Icon(Icons.ondemand_video,
+                          size: 18, color: Colors.white),
+                      label: const Text(
+                        'Watch Reference Demo',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.black54,
+                        side: const BorderSide(color: Colors.white30),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ),
+                _BottomHint(widget: this),
+              ],
+            ),
           ),
       ],
     );
@@ -273,104 +372,96 @@ class _DetectionCameraScreenState extends ConsumerState<DetectionCameraScreen>
 
 class _StatusBar extends StatelessWidget {
   final _DetectionCameraScreenState widget;
-  const _StatusBar({required this.widget});
+  final VoidCallback onBack;
+
+  const _StatusBar({required this.widget, required this.onBack});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final expected = widget.widget.expectedSignId;
-    final expectedSign = expected != null ? LessonCatalog.signById(expected) : null;
+    final expectedSign =
+        expected != null ? LessonCatalog.signById(expected) : null;
     final state = widget._state;
-    final confirmed = widget._lastConfirmed;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.black38,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              if (expectedSign != null) ...[
-                Text(expectedSign.emoji, style: const TextStyle(fontSize: 24)),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  expectedSign != null
-                      ? 'Sign "${expectedSign.text}"'
-                      : 'Communicate — perform a sign',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: Colors.white),
-                ),
-              ),
-              if (state.fps > 0)
-                Text('${state.fps} fps',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: Colors.white60)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _LivePill(state: state),
-              const Spacer(),
-              if (confirmed != null && confirmed.classification.isRecognized)
-                Text(
-                  'Detected: ${_textFor(confirmed.classification.signId)}',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: LingoColors.secondary),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _textFor(String? id) {
-    if (id == null) return '—';
-    return LessonCatalog.signById(id)?.text ?? id;
-  }
-}
-
-class _LivePill extends StatelessWidget {
-  final RecognitionState state;
-  const _LivePill({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = state.prediction;
-    final hasPrediction = p != null && p.isRecognized;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(12, 10, 72, 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black.withValues(alpha: 0.75),
+            Colors.transparent,
+          ],
+        ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            state.hasHand ? Icons.back_hand : Icons.pan_tool_alt_outlined,
-            size: 18,
-            color: state.hasHand ? LingoColors.primary : Colors.white60,
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_ios_new,
+                color: Colors.white, size: 20),
+            tooltip: 'Back',
           ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              hasPrediction
-                  ? LessonCatalog.signById(p.signId!)?.text ?? p.signId!
-                  : state.hasHand
-                      ? 'Looking…'
-                      : 'No hand detected',
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 4),
+          if (expectedSign != null) ...[
+            Text(expectedSign.emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  expectedSign != null
+                      ? 'Sign "${expectedSign.text}"'
+                      : 'Communicate',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  expectedSign != null
+                      ? 'Hold sign steady inside the frame'
+                      : 'Free-form ASL recognition',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
+          if (state.hasHand)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: LingoColors.secondary.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LingoColors.secondary, width: 1),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 3,
+                    backgroundColor: LingoColors.secondary,
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    'Hand detected',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -383,17 +474,39 @@ class _BottomHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.black45,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: const Text(
-          'Hold your hand up and perform the sign',
-          style: TextStyle(color: Colors.white70),
-        ),
+    final state = widget._state;
+    final pred = state.prediction;
+    final hasPrediction = pred != null && pred.isRecognized;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            state.hasHand ? Icons.back_hand : Icons.pan_tool_alt_outlined,
+            size: 16,
+            color: state.hasHand ? LingoColors.secondary : Colors.white60,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            hasPrediction
+                ? 'Recognizing: ${LessonCatalog.signById(pred.signId!)?.text ?? pred.signId!} (${(pred.confidence! * 100).round()}%)'
+                : state.hasHand
+                    ? 'Analyzing hand motion…'
+                    : 'Show your hand clearly to the camera',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -419,8 +532,9 @@ class _MascotCorner extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black45,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
       ),
-      child: Mascot(size: 48, mood: mood),
+      child: Mascot(size: 44, mood: mood),
     );
   }
 }

@@ -21,12 +21,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
 
-  LearningGoal? _selectedGoal;
   SkillLevel? _selectedLevel;
   final TextEditingController _nameController = TextEditingController();
   bool _isFinishing = false;
 
-  static const _totalPages = 3;
+  static const _totalPages = 2;
 
   @override
   void dispose() {
@@ -51,13 +50,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final name = _nameController.text.trim().isEmpty
         ? 'Friend'
         : _nameController.text.trim();
-    final goal = _selectedGoal ?? LearningGoal.justLearning;
     final level = _selectedLevel ?? SkillLevel.beginner;
 
     try {
       await ref.read(learnerStateProvider.notifier).setProfile(
             name: name,
-            goal: goal,
+            goal: LearningGoal.justLearning,
             level: level,
           );
       if (mounted) {
@@ -75,8 +73,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 0:
         return true;
       case 1:
-        return _selectedGoal != null;
-      case 2:
         return _selectedLevel != null;
       default:
         return false;
@@ -102,10 +98,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onPageChanged: (page) => setState(() => _currentPage = page),
                 children: [
                   _WelcomePage(onNext: () => _goToPage(1)),
-                  _GoalPage(
-                    selected: _selectedGoal,
-                    onSelect: (goal) => setState(() => _selectedGoal = goal),
-                  ),
                   _LevelPage(
                     selected: _selectedLevel,
                     onSelect: (level) => setState(() => _selectedLevel = level),
@@ -235,57 +227,6 @@ class _FeaturePoint extends StatelessWidget {
           const SizedBox(width: LingoSpacing.md),
           Text(text, style: theme.textTheme.bodyMedium),
         ],
-      ),
-    );
-  }
-}
-
-class _GoalPage extends StatelessWidget {
-  final LearningGoal? selected;
-  final ValueChanged<LearningGoal> onSelect;
-
-  const _GoalPage({required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: LingoSpacing.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Why are you learning ASL?',
-                style: theme.textTheme.headlineMedium)
-                .animate()
-                .fadeIn(duration: 400.ms)
-                .slideY(begin: 0.2, end: 0, duration: 400.ms),
-            const SizedBox(height: LingoSpacing.sm),
-            Text(
-              'This helps us tailor your lessons.',
-              style: theme.textTheme.bodyMedium,
-            ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
-            const SizedBox(height: LingoSpacing.xl),
-            for (final goal in LearningGoal.values) ...[
-              _OptionCard(
-                emoji: goal.icon,
-                label: goal.label,
-                description: goal.description,
-                selected: selected == goal,
-                onTap: () => onSelect(goal),
-              ).animate().fadeIn(
-                    delay: Duration(milliseconds: 300 + LearningGoal.values.indexOf(goal) * 100),
-                    duration: 300.ms,
-                  ).slideY(
-                    begin: 0.1,
-                    end: 0,
-                    delay: Duration(milliseconds: 300 + LearningGoal.values.indexOf(goal) * 100),
-                    duration: 300.ms,
-                  ),
-              const SizedBox(height: LingoSpacing.md),
-            ],
-          ],
-        ),
       ),
     );
   }
