@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'config/routes.dart';
 import 'config/theme.dart';
+import 'providers/theme_provider.dart';
 
 class LingoApp extends ConsumerWidget {
   const LingoApp({super.key});
@@ -10,13 +11,14 @@ class LingoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'LINGO',
       debugShowCheckedModeBanner: false,
       theme: LingoAppTheme.light(),
       darkTheme: LingoAppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

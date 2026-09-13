@@ -10,7 +10,9 @@ import '../screens/home/home_screen.dart';
 import '../screens/learn/lesson_detail_screen.dart';
 import '../screens/learn/lesson_list_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/practice/practice_session_screen.dart';
 import '../screens/progress/progress_screen.dart';
+import '../screens/settings/settings_screen.dart';
 
 /// Application router.
 ///
@@ -23,6 +25,7 @@ import '../screens/progress/progress_screen.dart';
 ///   /learn/:lessonId      → lesson detail
 ///   /practice?sign=:id    → practice (full screen, live camera)
 ///   /communicate          → communication mode (full screen, live camera)
+///   /settings             → app settings (theme, account)
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Re-evaluate redirects as Firebase restores or changes the user session.
   ref.watch(authStateProvider);
@@ -87,8 +90,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/practice/lesson/:lessonId',
+        builder: (context, state) => PracticeSessionScreen(
+          lessonId: state.pathParameters['lessonId']!,
+        ),
+      ),
+      GoRoute(
         path: '/communicate',
         builder: (context, state) => const CommunicateScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

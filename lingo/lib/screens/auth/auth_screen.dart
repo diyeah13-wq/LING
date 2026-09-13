@@ -48,6 +48,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
       } else {
         await auth.signIn(email: _email.text, password: _password.text);
+        final current = ref.read(learnerStateProvider);
+        if (current.profile == null) {
+          final name = await auth.fetchDisplayName();
+          if (name != null) {
+            await ref.read(learnerStateProvider.notifier).setProfile(
+              name: name,
+              goal: LearningGoal.justLearning,
+              level: SkillLevel.beginner,
+            );
+          }
+        }
       }
       if (mounted) context.go('/home');
     } on FirebaseAuthException catch (error) {

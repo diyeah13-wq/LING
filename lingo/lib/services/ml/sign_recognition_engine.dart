@@ -57,9 +57,17 @@ class SignRecognitionEngine {
   final int _windowFrames;
 
   static const int _windowTarget = 24; // matches training
-  static const double _confirmThreshold = 0.55;
-  static const int _hysteresisHits = 3;
+  static const double _defaultConfirmThreshold = 0.55;
+  static const int _hysteresisHits = 2;
+
+  /// Minimum gap between two confirmed recognitions of the same sign, so a
+  /// held sign doesn't spam repeated words (e.g. in Communicate mode).
+  static const Duration _dedupWindow = Duration(milliseconds: 2000);
   static const int _maxDetectDim = 640;
+
+  /// Minimum confidence for a prediction to be confirmed. Static (letter /
+  /// number) classifiers use a lower threshold via the constructor.
+  final double confirmThreshold;
 
   /// Classifier is re-run at most every [classifyInterval] while a hand is
   /// present.
@@ -68,6 +76,8 @@ class SignRecognitionEngine {
   final ListQueue<LandmarkFrame> _window = ListQueue();
   final List<SignClassification> _recent = [];
   int _framesPending = 0;
+  String? _lastConfirmedSignId;
+  DateTime? _lastConfirmedAt;
 
   List<Hand> _lastHands = const [];
   Size _lastImageSize = Size.zero;
@@ -88,6 +98,7 @@ class SignRecognitionEngine {
     required this._detector,
     required this._classifier,
     this.supportedSignIds,
+    this.confirmThreshold = _defaultConfirmThreshold,
     this.classifyInterval = const Duration(milliseconds: 120),
     int? windowFrames,
   }) : _windowFrames = windowFrames ?? _windowTarget;
@@ -177,7 +188,7 @@ class SignRecognitionEngine {
       _lastPrediction = result;
 
       if (!result.isRecognized ||
-          (result.confidence ?? 0) < _confirmThreshold) {
+          (result.confidence ?? 0) < confirmThreshold) {
         _recent.clear();
       } else {
         _recent.add(result);
@@ -186,7 +197,15 @@ class SignRecognitionEngine {
         }
         if (_recent.length >= _hysteresisHits &&
             _recent.every((p) => p.signId == result.signId)) {
-          _confirmedController.add(ConfirmedSign(result));
+          final now = DateTime.now();
+          final cooldownOk = _lastConfirmedSignId != result.signId ||
+              _lastConfirmedAt == null ||
+              now.difference(_lastConfirmedAt!) >= _dedupWindow;
+          if (cooldownOk) {
+            _lastConfirmedSignId = result.signId;
+            _lastConfirmedAt = now;
+            _confirmedController.add(ConfirmedSign(result));
+          }
           _recent.clear();
         }
       }
@@ -228,6 +247,8 @@ class SignRecognitionEngine {
     _recent.clear();
     _framesPending = 0;
     _lastPrediction = null;
+    _lastConfirmedSignId = null;
+    _lastConfirmedAt = null;
   }
 
   Future<void> dispose() async {

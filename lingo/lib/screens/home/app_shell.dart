@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../providers/learner_provider.dart';
-import '../../widgets/common/xp_badge.dart';
+import '../../config/theme.dart';
 
-/// Root scaffold with bottom navigation across main areas:
+/// Root scaffold with modern bottom navigation across main areas:
 /// Learn, Home, Progress.
-///
-/// Practice and Communicate are full-screen routes pushed on top of this
-/// shell (they need the full screen for the camera).
 class AppShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -17,41 +13,55 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final xp = ref.watch(progressProvider).xp;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: const Text('LINGO', style: TextStyle(fontWeight: FontWeight.w800)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(child: XpBadge(xp: xp)),
-          ),
-        ],
-      ),
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) =>
-            navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'Learn',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: isDark ? LingoColors.darkSurface : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? LingoColors.darkDivider : LingoColors.divider,
+              width: 1,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          indicatorColor: LingoColors.primary.withValues(alpha: 0.15),
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: (index) => navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Progress',
-          ),
-        ],
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.school_outlined),
+              selectedIcon: Icon(Icons.school, color: LingoColors.primary),
+              label: 'Learn',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home, color: LingoColors.primary),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.insights_outlined),
+              selectedIcon: Icon(Icons.insights, color: LingoColors.primary),
+              label: 'Progress',
+            ),
+          ],
+        ),
       ),
     );
   }

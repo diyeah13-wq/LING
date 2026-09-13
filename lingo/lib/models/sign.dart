@@ -40,6 +40,14 @@ class Sign {
   String? get resolvedReferenceImageAsset =>
       referenceImageAsset ?? _wordReferenceImages[id];
 
+  /// Bundled reference video clip used for real-life demonstration.
+  final String? referenceVideoAsset;
+
+  String? get resolvedReferenceVideoAsset =>
+      referenceVideoAsset ?? _wordReferenceVideos[id];
+
+  bool get hasVideoReference => resolvedReferenceVideoAsset != null;
+
   static const _wordReferenceImages = <String, String>{
     'hello': 'assets/references/words/hello.jpg',
     'thank-you': 'assets/references/words/thank-you.jpg',
@@ -54,6 +62,22 @@ class Sign {
     'food': 'assets/references/words/food.jpg',
     'doctor': 'assets/references/words/doctor.jpg',
     'hospital': 'assets/references/words/hospital.jpg',
+  };
+
+  static const _wordReferenceVideos = <String, String>{
+    'hello': 'assets/references/videos/hello.mp4',
+    'thank-you': 'assets/references/videos/thank-you.mp4',
+    'please': 'assets/references/videos/please.mp4',
+    'sorry': 'assets/references/videos/sorry.mp4',
+    'goodbye': 'assets/references/videos/goodbye.mp4',
+    'yes': 'assets/references/videos/yes.mp4',
+    'no': 'assets/references/videos/no.mp4',
+    'help': 'assets/references/videos/help.mp4',
+    'where': 'assets/references/videos/where.mp4',
+    'water': 'assets/references/videos/water.mp4',
+    'food': 'assets/references/videos/food.mp4',
+    'doctor': 'assets/references/videos/doctor.mp4',
+    'hospital': 'assets/references/videos/hospital.mp4',
   };
 
   /// The label this sign maps to in the on-device recognition model.
@@ -73,6 +97,7 @@ class Sign {
     required this.type,
     required this.emoji,
     this.referenceImageAsset,
+    this.referenceVideoAsset,
     String? modelLabel,
   }) : _modelLabelOverride = modelLabel;
 }

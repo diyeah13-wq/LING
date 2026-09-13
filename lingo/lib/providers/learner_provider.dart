@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/achievements_catalog.dart';
+import '../data/lesson_catalog.dart';
 import '../models/achievement.dart';
 import '../models/learner_profile.dart';
 import '../models/learner_state.dart';
@@ -60,7 +61,7 @@ class LearnerStateNotifier extends StateNotifier<LearnerState> {
 
   Future<void> completeLesson() async {
     state = state.copyWith(
-      progress: state.progress.completeLesson(today: DateTime.now()),
+      progress: _recomputeLessonsCompleted(state.progress),
     );
     await _unlockNewAchievements();
     await _persist();
@@ -68,10 +69,23 @@ class LearnerStateNotifier extends StateNotifier<LearnerState> {
 
   Future<void> learnSign(String signId) async {
     state = state.copyWith(
-      progress: state.progress.learnSign(signId),
+      progress: _recomputeLessonsCompleted(state.progress.learnSign(signId)),
     );
     await _unlockNewAchievements();
     await _persist();
+  }
+
+  /// Reconciles `lessonsCompleted` with the catalog: a lesson counts once
+  /// every one of its signs has been demonstrated. This keeps the counter
+  /// accurate regardless of how the signs were practiced (single-sign camera,
+  /// full lesson session, etc.) and avoids double counting.
+  Progress _recomputeLessonsCompleted(Progress progress) {
+    final completed = LessonCatalog.lessons
+        .where((lesson) =>
+            lesson.signs.every((s) => progress.signsLearned.contains(s.id)))
+        .length;
+    if (completed == progress.lessonsCompleted) return progress;
+    return progress.copyWith(lessonsCompleted: completed);
   }
 
   /// Unlocks any achievements whose conditions the current progress satisfies.

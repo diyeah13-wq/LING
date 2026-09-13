@@ -32,4 +32,21 @@ class AuthService {
       _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
 
   Future<void> signOut() => _auth.signOut();
+
+  /// Resolves the user's display name from their auth profile, falling back to
+  /// the name stored in Firestore (set at sign-up).
+  Future<String?> fetchDisplayName() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      return user.displayName!.trim();
+    }
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final name = doc.data()?['name'] as String?;
+      return (name == null || name.trim().isEmpty) ? null : name.trim();
+    } catch (_) {
+      return null;
+    }
+  }
 }
