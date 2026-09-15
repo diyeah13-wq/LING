@@ -122,7 +122,7 @@ flutter build apk --release
 
 ## 📲 APK Download
 
-[⬇️ Download the APK from GitHub Releases](https://github.com/diyeah13-wq/LINGO/releases/latest)
+[⬇️ Download the APK from GitHub Releases](https://github.com/diyeah13-wq/LING/releases/latest)
 
 ---
 
